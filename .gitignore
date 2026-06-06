@@ -1,0 +1,21 @@
+# Build C++ / CMake
+build/
+out/
+[Bb]in/
+[Oo]bj/
+CMakeFiles/
+CMakeCache.txt
+*.obj
+*.o
+*.exe
+*.pdb
+*.ilk
+*.exp
+*.lib
+
+# Visual Studio
+.vs/
+*.user
+
+# Config locale (mapping hardware, etc.)
+config.local.json
