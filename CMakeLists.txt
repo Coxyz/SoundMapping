@@ -18,15 +18,17 @@ set(EFFECT_SOURCES
     src/routing/AppAudioRouter.cpp
 )
 
-# --- Application principale (GUI) ---
+# --- Application principale unifiee (GUI) : routage + EQ par appli ---
 add_executable(SoundMapping WIN32
     src/main.cpp
-    src/gui/MixerWindow.cpp
-    src/hardware/SerialController.cpp
+    src/gui/ControlPanel.cpp
+    src/routing/MixEngine.cpp
+    src/audio/DefaultDevice.cpp
     ${CORE_SOURCES}
+    ${EFFECT_SOURCES}
 )
 target_compile_definitions(SoundMapping PRIVATE UNICODE _UNICODE)
-target_link_libraries(SoundMapping PRIVATE Ole32 Comctl32)
+target_link_libraries(SoundMapping PRIVATE Ole32 Comctl32 Mmdevapi Shell32)
 
 # --- Outil console pour tester le moteur de routage ---
 add_executable(RouterTest

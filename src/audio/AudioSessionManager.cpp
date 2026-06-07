@@ -79,6 +79,12 @@ std::vector<AudioSession> ListSessions() {
         ComPtr<IAudioSessionControl> control;
         if (FAILED(sessionEnum->GetSession(i, &control))) continue;
 
+        // Seulement les applis qui jouent REELLEMENT du son maintenant (on
+        // ignore les sessions inactives / expirees -> plus de "PID xxxx" fantomes).
+        AudioSessionState state = AudioSessionStateInactive;
+        if (FAILED(control->GetState(&state)) || state != AudioSessionStateActive)
+            continue;
+
         ComPtr<IAudioSessionControl2> control2;
         if (FAILED(control.As(&control2))) continue;
 

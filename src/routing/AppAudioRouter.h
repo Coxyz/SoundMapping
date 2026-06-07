@@ -1,10 +1,9 @@
 #pragma once
-// Capture le son d'UNE application (PID) -> EQ (basses/aigus) + volume ->
-// rendu sur une sortie reelle. C'est la brique "un canal par appli".
+// Capture une application puis applique DEUX etages avant le rendu :
+//   capture -> [etage APPLI : EQ + volume] -> [etage CANAL : EQ + volume] -> sortie
 //
-// On reutilise ProcessCapture (capture par processus) et ChannelEq (effets).
-// Plusieurs AppAudioRouter pourront tourner en parallele (un par appli), puis
-// on les mixera ; ici, version 1 = une appli vers une sortie.
+// L'etage appli = reglages propres a l'application (avant envoi au canal).
+// L'etage canal = reglages du canal auquel l'appli est assignee.
 
 #include "../audio/ProcessCapture.h"
 #include "../dsp/ChannelEq.h"
@@ -29,17 +28,22 @@ public:
     bool Start(DWORD pid, const std::wstring& outputId);
     void Stop();
 
-    void SetVolume(float v);        // 0.0 .. 1.0
-    void SetBassDb(double db);
-    void SetTrebleDb(double db);
+    // Etage APPLI
+    void SetAppVolume(float v);
+    void SetAppBassDb(double db);
+    void SetAppTrebleDb(double db);
+    // Etage CANAL
+    void SetChanVolume(float v);
+    void SetChanBassDb(double db);
+    void SetChanTrebleDb(double db);
 
 private:
-    void OnCapture(const float* data, UINT32 frames);  // appele par ProcessCapture
+    void OnCapture(const float* data, UINT32 frames);
 
     ProcessCapture     capture_;
-    ChannelEq          eq_;
+    ChannelEq          appEq_, chanEq_;
     std::mutex         eqMutex_;
-    std::atomic<float> volume_{ 1.0f };
+    std::atomic<float> appVol_{ 1.0f }, chanVol_{ 1.0f };
 
     Microsoft::WRL::ComPtr<IAudioClient>       renderClient_;
     Microsoft::WRL::ComPtr<IAudioRenderClient> render_;

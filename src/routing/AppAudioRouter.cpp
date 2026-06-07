@@ -10,20 +10,15 @@ using Microsoft::WRL::ComPtr;
 
 AppAudioRouter::~AppAudioRouter() { Stop(); }
 
-void AppAudioRouter::SetVolume(float v) {
-    volume_.store(std::clamp(v, 0.0f, 1.0f));
-}
-void AppAudioRouter::SetBassDb(double db) {
-    std::lock_guard<std::mutex> lock(eqMutex_);
-    eq_.SetBassDb(db);
-}
-void AppAudioRouter::SetTrebleDb(double db) {
-    std::lock_guard<std::mutex> lock(eqMutex_);
-    eq_.SetTrebleDb(db);
-}
+void AppAudioRouter::SetAppVolume(float v)   { appVol_.store(std::clamp(v, 0.0f, 1.0f)); }
+void AppAudioRouter::SetChanVolume(float v)  { chanVol_.store(std::clamp(v, 0.0f, 1.0f)); }
+
+void AppAudioRouter::SetAppBassDb(double db)   { std::lock_guard<std::mutex> l(eqMutex_); appEq_.SetBassDb(db); }
+void AppAudioRouter::SetAppTrebleDb(double db) { std::lock_guard<std::mutex> l(eqMutex_); appEq_.SetTrebleDb(db); }
+void AppAudioRouter::SetChanBassDb(double db)  { std::lock_guard<std::mutex> l(eqMutex_); chanEq_.SetBassDb(db); }
+void AppAudioRouter::SetChanTrebleDb(double db){ std::lock_guard<std::mutex> l(eqMutex_); chanEq_.SetTrebleDb(db); }
 
 bool AppAudioRouter::Start(DWORD pid, const std::wstring& outputId) {
-    // --- Rendu sur la sortie reelle (format = celui de la capture) ---
     ComPtr<IMMDeviceEnumerator> en;
     if (FAILED(CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr, CLSCTX_ALL,
                                 IID_PPV_ARGS(&en)))) return false;
@@ -48,16 +43,16 @@ bool AppAudioRouter::Start(DWORD pid, const std::wstring& outputId) {
 
     {
         std::lock_guard<std::mutex> lock(eqMutex_);
-        eq_.Configure(ProcessCapture::kSampleRate, ProcessCapture::kChannels);
+        appEq_.Configure(ProcessCapture::kSampleRate, ProcessCapture::kChannels);
+        chanEq_.Configure(ProcessCapture::kSampleRate, ProcessCapture::kChannels);
     }
     renderClient_->Start();
 
-    // Demarre la capture de l'appli ; le rendu se fait dans OnCapture().
     return capture_.Start(pid, [this](const float* d, UINT32 f) { OnCapture(d, f); });
 }
 
 void AppAudioRouter::Stop() {
-    capture_.Stop();                 // arrete d'abord la source
+    capture_.Stop();
     if (renderClient_) renderClient_->Stop();
     render_.Reset();
     renderClient_.Reset();
@@ -69,12 +64,15 @@ void AppAudioRouter::OnCapture(const float* data, UINT32 frames) {
 
     {
         std::lock_guard<std::mutex> lock(eqMutex_);
-        eq_.ProcessInterleaved(work_.data(), static_cast<int>(frames));
+        appEq_.ProcessInterleaved(work_.data(), static_cast<int>(frames));   // etage appli
+        chanEq_.ProcessInterleaved(work_.data(), static_cast<int>(frames));  // etage canal
     }
 
-    const float vol = volume_.load();
-    if (vol != 1.0f)
-        for (float& s : work_) s *= vol;
+    // Les deux volumes (scalaire) se combinent ; l'ordre avec les EQ lineaires
+    // n'a pas d'importance.
+    const float g = appVol_.load() * chanVol_.load();
+    if (g != 1.0f)
+        for (float& s : work_) s *= g;
 
     UINT32 padding = 0;
     if (!renderClient_ || FAILED(renderClient_->GetCurrentPadding(&padding))) return;
@@ -83,8 +81,7 @@ void AppAudioRouter::OnCapture(const float* data, UINT32 frames) {
 
     BYTE* out = nullptr;
     if (toWrite > 0 && SUCCEEDED(render_->GetBuffer(toWrite, &out))) {
-        std::memcpy(out, work_.data(),
-                    static_cast<size_t>(toWrite) * ch * sizeof(float));
+        std::memcpy(out, work_.data(), static_cast<size_t>(toWrite) * ch * sizeof(float));
         render_->ReleaseBuffer(toWrite, 0);
     }
 }

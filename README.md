@@ -5,12 +5,39 @@ avec à terme un **boîtier matériel** physique pour piloter les canaux.
 
 POC en **C++ natif** : binaire léger, aucun runtime, empreinte minimale.
 
-## Ce que fait le POC
+## L'application (`SoundMapping.exe`)
 
-- Détecte les applications qui jouent du son.
-- Affiche une **table de mixage** : un slider de volume vertical par appli + case « Muet ».
-- Modifie le volume **en temps réel**, indépendamment pour chaque appli.
-- Bouton **Rafraîchir** pour re-scanner les applis.
+Une **interface unique** (panneau Win32, aucun terminal) qui réunit tout :
+
+- bouton **Démarrer / Arrêter** le moteur ;
+- **4 canaux** (façon SteelSeries Sonar : *Game / Chat / Media / Aux*),
+  **renommables**, chacun avec une **sortie réelle optionnelle** et ses réglages
+  **volume / basses / aigus** ;
+- une section **Applications** : chaque appli qui joue du son a un menu pour
+  l'**assigner à un canal** ; elle est alors rendue sur la sortie de ce canal
+  avec son EQ. Une appli non assignée (ou dont le canal n'a pas de sortie) reste
+  audible sur ton ancienne sortie par défaut ;
+- liste qui se **rafraîchit** automatiquement quand une appli apparaît/disparaît ;
+- **bascule du périphérique par défaut** : au *Démarrer*, CABLE devient la sortie
+  Windows par défaut (tout le son entre dans l'app) ; à l'*Arrêter*/fermeture, la
+  sortie réelle sélectionnée redevient le défaut (via l'API `IPolicyConfig`) ;
+- **réglages sauvegardés** par application dans
+  `%APPDATA%\SoundMapping\settings.cfg` : ils reviennent au prochain lancement ;
+- **tâche de fond** : fermer ou minimiser la fenêtre la réduit dans la **zone de
+  notification** (le moteur continue de tourner). Clic-droit sur l'icône →
+  *Ouvrir / Démarrer-Arrêter / Quitter* ; double-clic → rouvrir.
+
+> Pourquoi pas un *service Windows* : un service tourne en session 0, isolée — il
+> ne voit ni les sessions audio de l'utilisateur ni le périphérique par défaut.
+> Le bon modèle (SteelSeries GG, EarTrumpet…) est une app utilisateur en
+> arrière-plan avec icône tray.
+
+Sous le capot : chaque appli est capturée séparément (process loopback,
+`MixEngine` → `AppAudioRouter`), passe dans son EQ (`ChannelEq`) + volume, et est
+rendue sur la sortie choisie. Windows mixe les flux automatiquement.
+
+Les outils console (`RouterTest`, `VirtualRoute`, `AppEq`) restent disponibles
+comme cibles séparées pour le debug.
 
 ## Stack
 
@@ -182,7 +209,8 @@ test (identité à 0 dB, boost basses/aigus ciblés, stabilité).
    avec volume. ✅ (testable via `RouterTest`)
 3. **EQ par application** — capture par processus (`ProcessCapture`) + EQ
    (`ChannelEq`) + routeur per-app (`AppAudioRouter`), testable via `AppEq`. ✅
-   Prochaine étape : mixer plusieurs apps en parallèle + GUI (un canal par appli).
+4. **Application unifiée** (`SoundMapping.exe`) — GUI Win32 : `MixEngine` gère un
+   canal par appli (volume + basses + aigus) vers une sortie sélectionnable. ✅
 4. **Périphérique virtuel** — driver open-source Virtual-Audio-Driver (SYSVAD,
    *test-signing* local) + auto-routage virtuel → sortie réelle (`VirtualRoute`). ✅
    Plus tard : compiler notre propre driver depuis les sources si besoin.

@@ -1,15 +1,16 @@
-// Point d'entree de SoundMapping (POC). Initialise COM puis lance la GUI.
+// Point d'entree de SoundMapping. Initialise COM puis lance le panneau unifie.
 #include <windows.h>
 #include <objbase.h>
 
-#include "gui/MixerWindow.h"
+#include "gui/ControlPanel.h"
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow) {
-    // STA : adapte a une appli GUI qui pilote des objets Core Audio.
-    if (FAILED(CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED)))
+    // MTA : les objets audio crees par la GUI sont utilises par les threads de
+    // capture (process loopback). Meme appartement COM -> pas de marshaling.
+    if (FAILED(CoInitializeEx(nullptr, COINIT_MULTITHREADED)))
         return 1;
 
-    const int code = RunMixerWindow(hInstance, nCmdShow);
+    const int code = RunControlPanel(hInstance, nCmdShow);
 
     CoUninitialize();
     return code;
