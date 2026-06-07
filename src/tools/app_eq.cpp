@@ -66,9 +66,9 @@ int wmain() {
         const wchar_t k = tok[0];
         if (k == L'q' || k == L'Q') break;
         const double val = _wtof(tok + 1);
-        if      (k == L'b') { router.SetBassDb(val);   wprintf(L"basses = %+.1f dB\n> ", val); }
-        else if (k == L't') { router.SetTrebleDb(val); wprintf(L"aigus  = %+.1f dB\n> ", val); }
-        else if (k == L'v') { router.SetVolume(static_cast<float>(val / 100.0));
+        if      (k == L'b') { EqBand b0{ true, 64.0,    val, 1.41 }; router.SetAppBand(0, b0); wprintf(L"basses = %+.1f dB\n> ", val); }
+        else if (k == L't') { EqBand b9{ true, 12000.0, val, 1.41 }; router.SetAppBand(9, b9); wprintf(L"aigus  = %+.1f dB\n> ", val); }
+        else if (k == L'v') { router.SetAppVolume(static_cast<float>(val / 100.0));
                               wprintf(L"volume = %.0f%%\n> ", val); }
         else                { wprintf(L"commande inconnue\n> "); }
     }

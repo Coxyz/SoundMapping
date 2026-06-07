@@ -10,13 +10,28 @@ POC en **C++ natif** : binaire léger, aucun runtime, empreinte minimale.
 Une **interface unique** (panneau Win32, aucun terminal) qui réunit tout :
 
 - bouton **Démarrer / Arrêter** le moteur ;
-- **4 canaux** (façon SteelSeries Sonar : *Game / Chat / Media / Aux*),
-  **renommables**, chacun avec une **sortie réelle optionnelle** et ses réglages
-  **volume / basses / aigus** ;
-- une section **Applications** : chaque appli qui joue du son a un menu pour
-  l'**assigner à un canal** ; elle est alors rendue sur la sortie de ce canal
-  avec son EQ. Une appli non assignée (ou dont le canal n'a pas de sortie) reste
-  audible sur ton ancienne sortie par défaut ;
+- **quatre pages** (boutons *Canaux* / *Applications* / *Égaliseur* / *Matériel*) ;
+- page **Canaux** : canaux **dynamiques** (bouton *+ Ajouter*, *Suppr* par canal),
+  renommables, chacun avec une **sortie réelle optionnelle** et un **volume** ;
+- page **Applications** : seules les applis qui jouent **réellement** du son
+  (sessions actives) sont listées ; chacune a son **volume** et un menu pour
+  l'envoyer vers un **canal** OU directement vers un **périphérique** ;
+- page **Égaliseur** (façon SteelSeries) : un **égaliseur paramétrique 10 bandes**
+  (chaque bande : activée, **fréquence**, **gain**, **Q**) avec sa **courbe de
+  réponse** dessinée en temps réel (dB affichés). **Points déplaçables à la
+  souris** sur la courbe (glisser = fréquence + gain), **Q à la molette**, plus
+  des sliders de gain et un éditeur clavier. Il s'applique à la **cible choisie** :
+  un canal OU une appli ;
+- règle anti-doublon : si une appli est envoyée vers un canal, **seul l'EQ du
+  canal** s'applique (l'EQ de l'appli est ignoré). Une appli envoyée vers un
+  périphérique utilise **son propre EQ**. Une appli sans cible reste audible sur
+  ton ancienne sortie par défaut ;
+- les **basses/aigus** simples ont été retirés (doublon avec l'égaliseur) ; il
+  reste un **volume** rapide par app/canal ;
+- page **Matériel** : associe un **boîtier série** (ex. *COM8*) qui envoie
+  `sld<n>:<0-100>`. Port + baud réglables, bouton *Connecter*, et 4 lignes pour
+  mapper chaque **slider physique** vers le **volume** d'un canal ou d'une appli
+  (la valeur reçue déplace le volume en direct) ;
 - liste qui se **rafraîchit** automatiquement quand une appli apparaît/disparaît ;
 - **bascule du périphérique par défaut** : au *Démarrer*, CABLE devient la sortie
   Windows par défaut (tout le son entre dans l'app) ; à l'*Arrêter*/fermeture, la

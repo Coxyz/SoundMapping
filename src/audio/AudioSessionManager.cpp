@@ -79,10 +79,11 @@ std::vector<AudioSession> ListSessions() {
         ComPtr<IAudioSessionControl> control;
         if (FAILED(sessionEnum->GetSession(i, &control))) continue;
 
-        // Seulement les applis qui jouent REELLEMENT du son maintenant (on
-        // ignore les sessions inactives / expirees -> plus de "PID xxxx" fantomes).
-        AudioSessionState state = AudioSessionStateInactive;
-        if (FAILED(control->GetState(&state)) || state != AudioSessionStateActive)
+        // On garde les applis ACTIVES *et* en pause (Inactive) : une appli qui
+        // arrete temporairement le son reste dans la liste. On ne retire que les
+        // sessions EXPIREES (processus ferme) -> evite les "PID xxxx" fantomes.
+        AudioSessionState state = AudioSessionStateActive;
+        if (SUCCEEDED(control->GetState(&state)) && state == AudioSessionStateExpired)
             continue;
 
         ComPtr<IAudioSessionControl2> control2;
@@ -93,9 +94,12 @@ std::vector<AudioSession> ListSessions() {
 
         DWORD pid = 0;
         control2->GetProcessId(&pid);
-        if (control2->IsSystemSoundsSession() == S_OK) pid = 0;
+        const bool sysSounds = (control2->IsSystemSoundsSession() == S_OK);
 
-        sessions.emplace_back(ProcessName(pid), pid, std::move(volume));
+        // On GARDE le vrai PID des sons systeme (pour pouvoir les capturer) et on
+        // leur met un nom clair.
+        std::wstring name = sysSounds ? L"Sons systeme" : ProcessName(pid);
+        sessions.emplace_back(std::move(name), pid, std::move(volume));
     }
     return sessions;
 }

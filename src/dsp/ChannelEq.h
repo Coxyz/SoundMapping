@@ -1,33 +1,38 @@
 #pragma once
-// EQ simple par canal : un shelf basses ("plus de basses") + un shelf aigus
-// ("son plus clair"). Reglages en dB, appliques en direct. Etat de filtre
-// independant par canal audio (stereo OK). Aucune dependance Windows.
+// Egaliseur parametrique : N bandes type "Peaking EQ" (facon SteelSeries).
+// Chaque bande a : activee, frequence (Hz), gain (dB), Q (largeur). Reglages en
+// direct. Fournit aussi la reponse en dB a une frequence -> pour tracer la
+// courbe. Aucune dependance Windows : testable n'importe ou.
 
 #include "Biquad.h"
 
+struct EqBand {
+    bool   enabled = true;
+    double freq    = 1000.0;
+    double gainDb  = 0.0;
+    double Q       = 1.41;
+};
+
 class ChannelEq {
 public:
+    static constexpr int kBands = 10;
+
     void Configure(double sampleRate, int channels);
 
-    void SetBassDb(double db);     // low-shelf  ~110 Hz
-    void SetTrebleDb(double db);   // high-shelf ~4 kHz
+    void   SetBand(int i, const EqBand& b);
+    EqBand GetBand(int i) const { return (i >= 0 && i < kBands) ? bands_[i] : EqBand{}; }
+    int    NumBands() const { return kBands; }
+    static EqBand Default(int i);     // bande par defaut (frequences reparties)
 
-    void ProcessInterleaved(float* data, int frames);  // in-place, interleaved
-
-    double BassDb()   const { return bassDb_; }
-    double TrebleDb() const { return trebleDb_; }
+    void ProcessInterleaved(float* data, int frames);  // in-place
+    double MagnitudeDb(double freq) const;             // reponse globale (dB)
 
 private:
-    void Rebuild();
+    void Rebuild(int i);
 
-    static constexpr int    kMaxCh     = 8;
-    static constexpr double kBassFreq  = 110.0;
-    static constexpr double kTrebleFreq = 4000.0;
-
+    static constexpr int kMaxCh = 8;
     double sampleRate_ = 48000.0;
     int    channels_   = 2;
-    double bassDb_     = 0.0;
-    double trebleDb_   = 0.0;
-    Biquad bass_[kMaxCh];
-    Biquad treble_[kMaxCh];
+    EqBand bands_[kBands];
+    Biquad filt_[kBands][kMaxCh];
 };

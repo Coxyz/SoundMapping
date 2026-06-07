@@ -1,15 +1,13 @@
 #pragma once
 // Filtre biquad (forme directe II transposee) + fabriques de coefficients
-// (RBJ Audio EQ Cookbook). 100% C++ standard, AUCUNE dependance Windows :
-// c'est le coeur "effets", testable n'importe ou (y compris hors Windows).
+// (RBJ Audio EQ Cookbook) + calcul de magnitude (pour tracer une courbe d'EQ).
+// 100% C++ standard, AUCUNE dependance Windows : testable n'importe ou.
 
 #include <cmath>
 
 struct Biquad {
-    // Coefficients (a0 deja normalise a 1).
-    double b0 = 1.0, b1 = 0.0, b2 = 0.0, a1 = 0.0, a2 = 0.0;
-    // Etat interne : un Biquad par canal audio.
-    double z1 = 0.0, z2 = 0.0;
+    double b0 = 1.0, b1 = 0.0, b2 = 0.0, a1 = 0.0, a2 = 0.0;   // a0 normalise
+    double z1 = 0.0, z2 = 0.0;                                  // etat (par canal)
 
     inline float Process(float x) {
         const double in = x;
@@ -20,32 +18,52 @@ struct Biquad {
     }
 
     void Reset() { z1 = 0.0; z2 = 0.0; }
+    void SetCoeffs(const Biquad& c) { b0 = c.b0; b1 = c.b1; b2 = c.b2; a1 = c.a1; a2 = c.a2; }
 
-    // Met a jour seulement les coefficients (preserve l'etat -> pas de "clic"
-    // quand on bouge l'EQ en direct).
-    void SetCoeffs(const Biquad& c) {
-        b0 = c.b0; b1 = c.b1; b2 = c.b2; a1 = c.a1; a2 = c.a2;
+    // Reponse en amplitude (dB) du filtre a la frequence `freq`.
+    double MagnitudeDb(double freq, double fs) const {
+        const double PI = 3.14159265358979323846;
+        const double w  = 2.0 * PI * freq / fs;
+        const double c1 = std::cos(w),       s1 = std::sin(w);
+        const double c2 = std::cos(2.0 * w), s2 = std::sin(2.0 * w);
+        const double nr = b0 + b1 * c1 + b2 * c2;
+        const double ni = -(b1 * s1 + b2 * s2);
+        const double dr = 1.0 + a1 * c1 + a2 * c2;
+        const double di = -(a1 * s1 + a2 * s2);
+        double mag2 = (nr * nr + ni * ni) / (dr * dr + di * di);
+        if (mag2 < 1e-12) mag2 = 1e-12;
+        return 10.0 * std::log10(mag2);   // 10*log10(mag^2) = 20*log10(mag)
     }
 
-    // Low-shelf : booste/coupe les basses sous `freq`.
-    static Biquad LowShelf(double freq, double sampleRate, double gainDb) {
-        return Shelf(freq, sampleRate, gainDb, /*low=*/true);
-    }
-    // High-shelf : booste/coupe les aigus au-dessus de `freq`.
-    static Biquad HighShelf(double freq, double sampleRate, double gainDb) {
-        return Shelf(freq, sampleRate, gainDb, /*low=*/false);
+    static Biquad LowShelf(double freq, double fs, double gainDb)  { return Shelf(freq, fs, gainDb, true); }
+    static Biquad HighShelf(double freq, double fs, double gainDb) { return Shelf(freq, fs, gainDb, false); }
+
+    // Cloche parametrique (boost/cut autour de `freq`, largeur reglee par Q).
+    static Biquad Peaking(double freq, double fs, double gainDb, double Q) {
+        const double PI = 3.14159265358979323846;
+        const double A     = std::pow(10.0, gainDb / 40.0);
+        const double w0    = 2.0 * PI * freq / fs;
+        const double cosw0 = std::cos(w0);
+        const double alpha = std::sin(w0) / (2.0 * Q);
+
+        double b0 = 1.0 + alpha * A,  b1 = -2.0 * cosw0, b2 = 1.0 - alpha * A;
+        double a0 = 1.0 + alpha / A,  a1 = -2.0 * cosw0, a2 = 1.0 - alpha / A;
+
+        Biquad q;
+        q.b0 = b0 / a0; q.b1 = b1 / a0; q.b2 = b2 / a0;
+        q.a1 = a1 / a0; q.a2 = a2 / a0;
+        return q;
     }
 
 private:
     static Biquad Shelf(double freq, double fs, double gainDb, bool low) {
         const double PI    = 3.14159265358979323846;
-        const double A     = std::pow(10.0, gainDb / 40.0);   // gain DC = A^2
+        const double A     = std::pow(10.0, gainDb / 40.0);
         const double w0    = 2.0 * PI * (freq / fs);
         const double cosw0 = std::cos(w0);
         const double sinw0 = std::sin(w0);
-        const double S     = 1.0;                              // pente du shelf
-        const double alpha = (sinw0 / 2.0) *
-                             std::sqrt((A + 1.0 / A) * (1.0 / S - 1.0) + 2.0);
+        const double S     = 1.0;
+        const double alpha = (sinw0 / 2.0) * std::sqrt((A + 1.0 / A) * (1.0 / S - 1.0) + 2.0);
         const double beta  = 2.0 * std::sqrt(A) * alpha;
 
         double b0, b1, b2, a0, a1, a2;
@@ -64,7 +82,6 @@ private:
             a1 =      2 * ((A - 1) - (A + 1) * cosw0);
             a2 =          (A + 1) - (A - 1) * cosw0 - beta;
         }
-
         Biquad q;
         q.b0 = b0 / a0; q.b1 = b1 / a0; q.b2 = b2 / a0;
         q.a1 = a1 / a0; q.a2 = a2 / a0;

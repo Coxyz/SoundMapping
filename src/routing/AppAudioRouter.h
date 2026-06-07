@@ -28,14 +28,12 @@ public:
     bool Start(DWORD pid, const std::wstring& outputId);
     void Stop();
 
-    // Etage APPLI
+    // Etage APPLI (EQ utilise quand l'appli va vers un PERIPHERIQUE)
     void SetAppVolume(float v);
-    void SetAppBassDb(double db);
-    void SetAppTrebleDb(double db);
-    // Etage CANAL
+    void SetAppBand(int i, const EqBand& b);
+    // Etage CANAL (EQ utilise quand l'appli va vers un CANAL)
     void SetChanVolume(float v);
-    void SetChanBassDb(double db);
-    void SetChanTrebleDb(double db);
+    void SetChanBand(int i, const EqBand& b);
 
 private:
     void OnCapture(const float* data, UINT32 frames);

@@ -10,13 +10,10 @@ using Microsoft::WRL::ComPtr;
 
 AppAudioRouter::~AppAudioRouter() { Stop(); }
 
-void AppAudioRouter::SetAppVolume(float v)   { appVol_.store(std::clamp(v, 0.0f, 1.0f)); }
-void AppAudioRouter::SetChanVolume(float v)  { chanVol_.store(std::clamp(v, 0.0f, 1.0f)); }
-
-void AppAudioRouter::SetAppBassDb(double db)   { std::lock_guard<std::mutex> l(eqMutex_); appEq_.SetBassDb(db); }
-void AppAudioRouter::SetAppTrebleDb(double db) { std::lock_guard<std::mutex> l(eqMutex_); appEq_.SetTrebleDb(db); }
-void AppAudioRouter::SetChanBassDb(double db)  { std::lock_guard<std::mutex> l(eqMutex_); chanEq_.SetBassDb(db); }
-void AppAudioRouter::SetChanTrebleDb(double db){ std::lock_guard<std::mutex> l(eqMutex_); chanEq_.SetTrebleDb(db); }
+void AppAudioRouter::SetAppVolume(float v)  { appVol_.store(std::clamp(v, 0.0f, 1.0f)); }
+void AppAudioRouter::SetChanVolume(float v) { chanVol_.store(std::clamp(v, 0.0f, 1.0f)); }
+void AppAudioRouter::SetAppBand(int i, const EqBand& b)  { std::lock_guard<std::mutex> l(eqMutex_); appEq_.SetBand(i, b); }
+void AppAudioRouter::SetChanBand(int i, const EqBand& b) { std::lock_guard<std::mutex> l(eqMutex_); chanEq_.SetBand(i, b); }
 
 bool AppAudioRouter::Start(DWORD pid, const std::wstring& outputId) {
     ComPtr<IMMDeviceEnumerator> en;

@@ -4,6 +4,9 @@ project(SoundMapping LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Silence les avertissements C4996 (wscanf/_wgetenv "non securises").
+add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
+
 # Sources partagees (coeur audio + routage), reutilisees par plusieurs cibles.
 set(CORE_SOURCES
     src/audio/AudioSessionManager.cpp
@@ -24,11 +27,12 @@ add_executable(SoundMapping WIN32
     src/gui/ControlPanel.cpp
     src/routing/MixEngine.cpp
     src/audio/DefaultDevice.cpp
+    src/hardware/SerialReader.cpp
     ${CORE_SOURCES}
     ${EFFECT_SOURCES}
 )
 target_compile_definitions(SoundMapping PRIVATE UNICODE _UNICODE)
-target_link_libraries(SoundMapping PRIVATE Ole32 Comctl32 Mmdevapi Shell32)
+target_link_libraries(SoundMapping PRIVATE Ole32 Comctl32 Mmdevapi Shell32 Gdi32)
 
 # --- Outil console pour tester le moteur de routage ---
 add_executable(RouterTest
